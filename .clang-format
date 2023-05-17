@@ -1,0 +1,11 @@
+Language: Cpp
+BasedOnStyle: Google
+
+AlwaysBreakAfterReturnType: All
+ColumnLimit: 80
+
+AllowShortFunctionsOnASingleLine: Empty
+
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
