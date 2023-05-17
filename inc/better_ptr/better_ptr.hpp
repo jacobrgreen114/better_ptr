@@ -5,5 +5,6 @@
 
 #pragma once
 
+#include "box.hpp"
 #include "common.hpp"
 #include "pointer.hpp"

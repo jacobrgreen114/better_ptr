@@ -1,5 +1,9 @@
 # Better Pointer
 
+Better Pointer is a concept based pointer library for C++.
+It is designed where the pointer simply calls _ref() and _unref() on the object it points to.
+This allows for ref counting and object deletion to be handled by the object itself.
+
 ## Example
 
 ```c++
