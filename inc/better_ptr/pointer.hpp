@@ -3,8 +3,6 @@
  * All Rights Reserved
  */
 
-// todo : thing
-
 #pragma once
 
 #include <atomic>
@@ -41,6 +39,12 @@ concept Pointable = requires(T t) {
  */
 template <POINTABLE_CONCEPT T>
 class Pointer final {
+  template <POINTABLE_CONCEPT U>
+  friend class Pointer;
+
+  template <POINTABLE_CONCEPT U>
+  friend class Reference;
+
   T* _ptr;
 
  public:
@@ -52,12 +56,37 @@ class Pointer final {
     }
   }
 
+  template <POINTABLE_CONCEPT U>
+  constexpr Pointer(U* ptr) noexcept : _ptr(ptr) {
+    if (_ptr) {
+      _ptr->_ref();
+    }
+  }
+
   constexpr Pointer(Pointer&& move) noexcept : _ptr(move._ptr) {
+    move._ptr = nullptr;
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Pointer(Pointer<U>&& move) noexcept : _ptr(move._ptr) {
     move._ptr = nullptr;
   }
 
   constexpr Pointer&
   operator=(Pointer&& move) noexcept {
+    if (_ptr) {
+      _ptr->_unref();
+    }
+
+    _ptr = move._ptr;
+    move._ptr = nullptr;
+
+    return *this;
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Pointer&
+  operator=(Pointer<U>&& move) noexcept {
     if (_ptr) {
       _ptr->_unref();
     }
@@ -74,8 +103,30 @@ class Pointer final {
     }
   }
 
+  template <POINTABLE_CONCEPT U>
+  constexpr Pointer(const Pointer<U>& copy) : _ptr(copy._ptr) {
+    if (_ptr) {
+      _ptr->_ref();
+    }
+  }
+
   constexpr Pointer&
   operator=(const Pointer& copy) {
+    if (_ptr) {
+      _ptr->_unref();
+    }
+
+    _ptr = copy._ptr;
+    if (_ptr) {
+      _ptr->_ref();
+    }
+
+    return *this;
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Pointer&
+  operator=(const Pointer<U>& copy) {
     if (_ptr) {
       _ptr->_unref();
     }
@@ -117,6 +168,146 @@ class Pointer final {
   static constexpr Pointer
   make(Args&&... args) {
     return Pointer(new T(std::forward<Args>(args)...));
+  }
+};
+
+/**
+ * @brief A non-nullable reference type that automatically calls _ref() and
+ * _unref() on the pointed object.
+ *
+ * @note Reference does not delete the pointed object. Object deletion must be
+ * handled by the object itself.
+ *
+ * @tparam T
+ */
+template <POINTABLE_CONCEPT T>
+class Reference final {
+  template <POINTABLE_CONCEPT U>
+  friend class Reference;
+
+  template <POINTABLE_CONCEPT U>
+  friend class Reference;
+
+  T* _ptr;
+
+  constexpr void
+  null_check() {
+    if (_ptr == nullptr) {
+      throw new std::invalid_argument("Pointer cannot be null.");
+    }
+  }
+
+ public:
+  constexpr Reference() noexcept : _ptr(nullptr) {}
+
+  constexpr Reference(T* ptr) noexcept : _ptr(ptr) {
+    null_check();
+    _ptr->_ref();
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Reference(U* ptr) noexcept : _ptr(ptr) {
+    null_check();
+    _ptr->_ref();
+  }
+
+  constexpr Reference(Reference&& move) noexcept : _ptr(move._ptr) {
+    null_check();
+    move._ptr = nullptr;
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Reference(Reference<U>&& move) noexcept : _ptr(move._ptr) {
+    null_check();
+    move._ptr = nullptr;
+  }
+
+  constexpr Reference&
+  operator=(Reference&& move) noexcept {
+    _ptr->_unref();
+
+    _ptr = move._ptr;
+    null_check();
+    move._ptr = nullptr;
+
+    return *this;
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Reference&
+  operator=(Reference<U>&& move) noexcept {
+    _ptr->_unref();
+
+    _ptr = move._ptr;
+    null_check();
+    move._ptr = nullptr;
+
+    return *this;
+  }
+
+  constexpr Reference(const Reference& copy) : _ptr(copy._ptr) {
+    null_check();
+    _ptr->_ref();
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Reference(const Reference<U>& copy) : _ptr(copy._ptr) {
+    null_check();
+    _ptr->_ref();
+  }
+
+  constexpr Reference&
+  operator=(const Reference& copy) {
+    _ptr->_unref();
+
+    _ptr = copy._ptr;
+    null_check();
+    _ptr->_ref();
+
+    return *this;
+  }
+
+  template <POINTABLE_CONCEPT U>
+  constexpr Reference&
+  operator=(const Reference<U>& copy) {
+    _ptr->_unref();
+
+    _ptr = copy._ptr;
+    null_check();
+    _ptr->_ref();
+
+    return *this;
+  }
+
+  ~Reference() {
+    if (_ptr) {
+      _ptr->_unref();
+    }
+  }
+
+  constexpr T*
+  operator->() const noexcept {
+    return _ptr;
+  }
+
+  constexpr T&
+  operator*() const noexcept {
+    return *_ptr;
+  }
+
+  constexpr T*
+  get() const noexcept {
+    return _ptr;
+  }
+
+  constexpr operator bool() const noexcept {
+    return _ptr != nullptr;
+  }
+
+  template <typename... Args>
+  static constexpr Reference
+  make(Args&&... args) {
+    return Reference(new T(std::forward<Args>(args)...));
   }
 };
 

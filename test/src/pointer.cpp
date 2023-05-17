@@ -8,7 +8,7 @@
 #include <atomic>
 #include <better_ptr/better_ptr.hpp>
 
-class TestClass final {
+class TestClass {
   static std::atomic_size_t _instance_count;
 
   std::atomic_size_t _ref_count;
@@ -45,9 +45,11 @@ class TestClass final {
   }
 };
 
+std::atomic_size_t TestClass::_instance_count(0);
+
 static_assert(BETTER_PTR_NAMESPACE::Pointable<TestClass>);
 
-std::atomic_size_t TestClass::_instance_count(0);
+class TestClass2 : public TestClass {};
 
 TEST(PointerTests, DefaultConstructor) {
   auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass>();
@@ -56,6 +58,13 @@ TEST(PointerTests, DefaultConstructor) {
 
 TEST(PointerTests, RawPointerConstructor) {
   auto ptest = new TestClass();
+  auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass>(ptest);
+  EXPECT_EQ(ptr.get(), ptest);
+  EXPECT_EQ(ptr->ref_count(), 1);
+}
+
+TEST(PointerTests, RawPointerConstructorCast) {
+  auto ptest = new TestClass2();
   auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass>(ptest);
   EXPECT_EQ(ptr.get(), ptest);
   EXPECT_EQ(ptr->ref_count(), 1);
@@ -70,9 +79,28 @@ TEST(PointerTests, MoveConstructor) {
   EXPECT_EQ(ptr2.get()->ref_count(), 1);
 }
 
+TEST(PointerTests, MoveConstructorCast) {
+  auto ptest = new TestClass2();
+  auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass2>(ptest);
+  auto ptr2 = BETTER_PTR_NAMESPACE::Pointer<TestClass>(std::move(ptr));
+  EXPECT_EQ(ptr.get(), nullptr);
+  EXPECT_EQ(ptr2.get(), ptest);
+  EXPECT_EQ(ptr2.get()->ref_count(), 1);
+}
+
 TEST(PointerTests, MoveAssignment) {
   auto ptest = new TestClass();
   auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass>(ptest);
+  auto ptr2 = BETTER_PTR_NAMESPACE::Pointer<TestClass>();
+  ptr2 = std::move(ptr);
+  EXPECT_EQ(ptr.get(), nullptr);
+  EXPECT_EQ(ptr2.get(), ptest);
+  EXPECT_EQ(ptr2.get()->ref_count(), 1);
+}
+
+TEST(PointerTests, MoveAssignmentCast) {
+  auto ptest = new TestClass2();
+  auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass2>(ptest);
   auto ptr2 = BETTER_PTR_NAMESPACE::Pointer<TestClass>();
   ptr2 = std::move(ptr);
   EXPECT_EQ(ptr.get(), nullptr);
@@ -89,9 +117,28 @@ TEST(PointerTests, CopyConstructor) {
   EXPECT_EQ(ptr->ref_count(), 2);
 }
 
+TEST(PointerTests, CopyConstructorCast) {
+  auto ptest = new TestClass2();
+  auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass2>(ptest);
+  auto ptr2 = BETTER_PTR_NAMESPACE::Pointer<TestClass>(ptr);
+  EXPECT_EQ(ptr.get(), ptest);
+  EXPECT_EQ(ptr2.get(), ptest);
+  EXPECT_EQ(ptr->ref_count(), 2);
+}
+
 TEST(PointerTests, CopyAssignment) {
   auto ptest = new TestClass();
   auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass>(ptest);
+  auto ptr2 = BETTER_PTR_NAMESPACE::Pointer<TestClass>();
+  ptr2 = ptr;
+  EXPECT_EQ(ptr.get(), ptest);
+  EXPECT_EQ(ptr2.get(), ptest);
+  EXPECT_EQ(ptr->ref_count(), 2);
+}
+
+TEST(PointerTests, CopyAssignmentCast) {
+  auto ptest = new TestClass2();
+  auto ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass2>(ptest);
   auto ptr2 = BETTER_PTR_NAMESPACE::Pointer<TestClass>();
   ptr2 = ptr;
   EXPECT_EQ(ptr.get(), ptest);
@@ -121,3 +168,5 @@ TEST(PointerTests, Bool) {
   ptr = BETTER_PTR_NAMESPACE::Pointer<TestClass>::make();
   EXPECT_EQ(ptr, true);
 }
+
+// todo : implement reference tests
